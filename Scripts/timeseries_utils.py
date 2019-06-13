@@ -1,28 +1,47 @@
 from statsmodels.tsa.stattools import adfuller, acf, pacf
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
+from sklearn.metrics import mean_absolute_error
+import numpy as np
+import pandas as pd
 
-
-
-
-def plot_ts(ts, window=12, label='Product quantity', 
-            title='Quantity of sales of product P1', ylabel='Quantity of sales'):
+def plot_ts(series, window, ax, plot_intervals=False, scale=1.96, plot_anomalies=False):
     """
-    This function plot the time series data and it's rolling statistics.
-    param ts: Time series data
-    param window: Time window to use on rolling statistics
-    param label: Label to put in your time series plot
-    param title: Title to put in your time series plot
-    param ylabel: Y-axis label to put in your time series plot.
-    return: It returns a plt figure.
+    This function plot the time series with confidence intervals and anomalies.
+    
+    param series: Time series data
+    param window: Window to calculate rolling statistics
+    param ax: Axes to plot 
+    param plot_intervals: If to plot confidence intervals or not.
+    param plot_anomalies: It to plot anomalies or not.
+    return: Figure plot
+    
     """
-    ts.plot(figsize=(12, 8), label=label)
-    ts.rolling(window=window).mean().plot(label='Rolling Mean')
-    ts.rolling(window=window).std().plot(label='Rolling Std')
-    plt.title(title)
-    plt.xlabel('Date')
-    plt.ylabel(ylabel)
-    plt.legend()
+    rolling_mean = series.rolling(window=window).mean()
+
+#     ax.plot(rolling_mean, "g", label="Rolling mean trend")
+
+    # Plot confidence intervals for smoothed values
+    if plot_intervals:
+        mae = mean_absolute_error(series[window:], rolling_mean[window:])
+        deviation = np.std(series[window:] - rolling_mean[window:])
+        lower_bond = rolling_mean - (mae + scale * deviation)
+        upper_bond = rolling_mean + (mae + scale * deviation)
+        ax.plot(upper_bond, "r--", label="Upper Bond / Lower Bond")
+        ax.plot(lower_bond, "r--",)
+        
+        # Having the intervals, find abnormal values
+        if plot_anomalies:
+            anomalies = pd.DataFrame(index=series.index, columns=series.columns)
+            anomalies[series<lower_bond] = series[series<lower_bond]
+            anomalies[series>upper_bond] = series[series>upper_bond]
+            ax.plot(anomalies, "ro", markersize=10)
+        
+    ax.plot(series[window:], label="Actual values")
+    ax.legend(loc=0)
+    ax.grid(True)
+    ax.set_xticklabels(series.index.astype(str), rotation=45)
+    plt.tight_layout()
     
     return plt
 
@@ -59,12 +78,11 @@ def test_stationarity(ts):
     return: Output of the test as a dataframe.
     
     """
-    print('Performing Dickey Fuller test..')
-    test, pvalue, usedLags, nobs, critical_values, _, _ = adfuller(ts, autolag='AIC')
-    output = pd.DataFrame({'TestStatistics': test, 'Pvalue': pvalue, 'usedLags': usedLags, 'Number of obs': nobs}, 
-                          index=['Test Statistics', 'p-value', '#Lags Used', 'Number of Observations Used'])
+#     print('Performing Dickey Fuller test..')
+    dftest = adfuller(ts, autolag='AIC')
+    dfoutput = pd.DataFrame(dftest[0:4], index=['Test Statistic','p-value','#Lags Used','Number of Observations Used'], columns=['Statistical Values'])
     
-    for key, value in critical_values.items():
-        output.loc['Critical value {}'.format(key)] = value
+    for key, value in dftest[4].items():
+        dfoutput.loc['Critical value {}'.format(key)] = value
     
-    return output
+    return dfoutput

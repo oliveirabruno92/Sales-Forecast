@@ -25,7 +25,22 @@ def mape(true, predictions):
     """
     true = np.array(true)
     predictions = np.array(predictions)    
-    return np.mean(np.abs((true - predictions) / true)) * 100
+    return np.mean(np.abs((true - predictions)) / true) * 100
+
+def smape(true, predictions):
+    """
+    This functions calculate the symmetric mean absolute percentage error
+    
+    param true: True values of the data
+    param predictions: Predicted values
+    return: sMAPE
+    
+    """
+    
+    true = np.array(true)
+    predictions = np.array(predictions)
+    
+    return np.mean(np.abs(true - predictions) * 2/ (np.abs(true) + np.abs(predictions))) * 100
 
 def metrics(true, predictions):
     """
@@ -41,5 +56,6 @@ def metrics(true, predictions):
     metrics.loc['RMSE'] = rmse(true, predictions)
     metrics.loc['R2'] = r2_score(true, predictions)
     metrics.loc['MAPE'] = mape(true, predictions)
+    metrics.loc['sMAPE'] = smape(true, predictions)
     
     return metrics
